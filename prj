@@ -1,0 +1,133 @@
+#!/usr/bin/python3.1
+
+#import sys
+
+import argparse
+import os
+import sqlite3
+
+from configparser import SafeConfigParser
+
+def setupParser():
+    aparser = argparse.ArgumentParser( description='Organize your projects' )
+    aparser.add_argument( '--config', '-c', nargs=1, help='use different config file', default='~/.prjrc'.split() )
+
+    subparser = aparser.add_subparsers( help='additional help', title='subcommands', description='valid sub-commands', dest='parser_name' )
+
+    infoparser = subparser.add_parser( 'info', help='Info about projects' )
+    infoparser.add_argument( '--ftp', '-f', action='store_true', help='Display FTP-URL' )
+    infoparser.add_argument( '--path', '-p', action='store_true', help='Display full projectpath' )
+    infoparser.add_argument( 'project', metavar='project', nargs=1, help='The name of the project to get infos for' )
+    infoparser.set_defaults(func=info)
+
+    listparser = subparser.add_parser( 'list', help='list projects' )
+    listparser.set_defaults(func=list)
+
+    addparser = subparser.add_parser( 'add', help='Add projects' )
+    addparser.add_argument( '--scan', '-s', action='store_true', help='Scan projectdirectories for projects' )
+    addparser.add_argument( 'project', metavar='project', nargs='?', help='The name of the project to add' )
+    addparser.add_argument( 'path', metavar='path', nargs='?', help='The path to the projects directory' )
+    addparser.set_defaults(func=add)
+
+    args = aparser.parse_args( )
+    return args
+
+def writeDefaultConfig( configFile, cparser ):
+    if configFile.mode == 'w':
+        # Write...
+        cparser.write( configFile )
+        return True
+    return False
+
+def getDbConn( config ):
+    conn = sqlite3.connect( os.path.abspath( os.path.expanduser( config.get( 'DEFAULT', 'database' ) ) ))
+    return conn
+
+def add( args, config ):
+    if args.project:
+        project = args.project[0]
+        if args.path:
+            c = getDbConn( config )
+            addProject( c, project, args.path[0] )
+            print( project + ' added with path ' + args.path[0] )
+            return True
+    if args.scan:
+        scan( config.get( 'DEFAULT', 'projectdir' ), config )
+
+
+def addProject( c, project, path ):
+    if checkProjectExists( c, project ) == False:
+        c.execute( 'insert into projects ( project, path ) values ( "' + project.lower() + '", "' + path + '" )' )
+        c.commit()
+        c.close()
+    else:
+        print( 'project ' + project + ' allready added' )
+    return True;
+
+def checkProjectExists( c, project ):
+    r = c.execute( 'select count( project ) from projects where project = ?', (project,) )
+    exists = r.fetchone()[0]
+    if exists == 1:
+        return True
+    else:
+        return False
+
+def scan( directory, config ):
+    directoryToScan = os.path.abspath( os.path.expanduser( directory ) )
+    print( 'Scanning ' + directoryToScan )
+    if os.path.isdir( directoryToScan ):
+        for project in os.listdir( directoryToScan ):
+            if os.path.isdir( directoryToScan + '/' + project ):
+                decision = input( 'Add (a) ' + project + ' as Project or Scan (s) this directory? (k to skip) ' )
+                if decision == 'a':
+                    addProject( getDbConn( config ), project, directoryToScan + '/' + project )
+                elif decision == 's':
+                    scan( directoryToScan + '/' + project, config )
+                elif decision == 'q':
+                    return True
+    return True
+
+def info( args, config ):
+    if args.project:
+        project = args.project[0]
+        if args.path == True or args.ftp == False:
+            c = getDbConn( config )
+            r = c.execute( 'select path from projects where project LIKE ?', ('%'+project+'%',) )
+            path = r.fetchone()[0]
+            print( path )
+    return True
+
+
+def list( args, config ):
+    c = getDbConn( config )
+    r = c.execute( 'select * from projects' )
+    for row in r:
+        print( row[0] + ': ' + row[1] )
+
+def main():
+    args = setupParser()
+
+    cparser = SafeConfigParser( defaults={'configfile':'~/.prjrc','projectdir':'~/Dev/','database':'~/.prjdb'})
+
+    # get path of config file
+    configfile = os.path.abspath( os.path.expanduser( args.config[0] ) )
+    try:
+        configFile = open( configfile, 'r' )
+    except IOError:
+        configFile = open( configfile, 'w' )
+        writeDefaultConfig( configFile, cparser )
+        c = getDbConn( cparser )
+        sql = 'create table if not exists projects ( project text, path text )'
+        c.execute( sql )
+        c.commit()
+        c.close()
+    configFile.close()
+
+    cparser.read( configfile )
+
+    args.func( args, cparser )
+
+if __name__ == "__main__":
+    main()
+
+#vim: ft=python
