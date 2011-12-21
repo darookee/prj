@@ -123,9 +123,9 @@ def remove( args, config ):
 
 def list( args, config ):
     c = getDbConn( config )
-    r = c.execute( 'select * from projects' )
+    r = c.execute( 'select project, path from projects' )
     for row in r:
-        print( row[1] + ': ' + row[2] )
+        print( row[0] + ': ' + row[1] )
 
 def main():
     args = setupParser()
