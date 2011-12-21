@@ -20,6 +20,11 @@ def setupParser():
     infoparser.add_argument( 'project', metavar='project', nargs=1, help='The name of the project to get infos for' )
     infoparser.set_defaults(func=info)
 
+    removeparser = subparser.add_parser( 'remove', help='remove project' )
+    removeparser.add_argument( '--scan', '-s', action='store_true', help='Scan for deleted project folders' )
+    removeparser.add_argument( 'project', metavar='project', nargs='?', help='The name of the project to remove' )
+    removeparser.set_defaults(func=remove)
+
     listparser = subparser.add_parser( 'list', help='list projects' )
     listparser.set_defaults(func=list)
 
@@ -95,6 +100,24 @@ def info( args, config ):
             r = c.execute( 'select path from projects where project LIKE ?', ('%'+project+'%',) )
             path = r.fetchone()[0]
             print( path )
+    return True
+
+def remove( args, config ):
+    if args.project:
+        project = args.project[0]
+        c = getDbConn( config )
+        c.execute( 'delete from projects where project = ?', (project,) )
+        c.commit()
+        print( project + ' removed' )
+        return True
+    elif args.scan == True:
+        c = getDbConn( config )
+        r = c.execute( 'select project, path from projects' )
+        for row in r:
+            if os.path.isdir( row[1] ) != True:
+                c.execute( 'delete from projects where project=?', ( row[0], ) )
+                c.commit()
+                print( row[0] + ' removed' )
     return True
 
 
