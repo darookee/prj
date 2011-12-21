@@ -125,7 +125,7 @@ def list( args, config ):
     c = getDbConn( config )
     r = c.execute( 'select * from projects' )
     for row in r:
-        print( row[0] + ': ' + row[1] )
+        print( row[1] + ': ' + row[2] )
 
 def main():
     args = setupParser()
@@ -140,7 +140,9 @@ def main():
         configFile = open( configfile, 'w' )
         writeDefaultConfig( configFile, cparser )
         c = getDbConn( cparser )
-        sql = 'create table if not exists projects ( project text, path text )'
+        sql = 'create table if not exists projects ( id integer primary key, project text, path text )'
+        c.execute( sql )
+        sql = 'create table if not exists project_ftp( id integer primary key, project_id integer, username text, password text, host text, basepath text )'
         c.execute( sql )
         c.commit()
         c.close()
