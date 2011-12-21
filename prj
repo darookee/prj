@@ -83,7 +83,7 @@ def scan( directory, config ):
     if os.path.isdir( directoryToScan ):
         for project in os.listdir( directoryToScan ):
             if os.path.isdir( directoryToScan + '/' + project ):
-                decision = input( 'Add (a) ' + project + ' as Project or Scan (s) this directory? (k to skip) ' )
+                decision = input( 'Add ' + project + ' as Project, scan this directory, skip or quit tree? [a/s/K/q]' )
                 if decision == 'a':
                     addProject( getDbConn( config ), project, directoryToScan + '/' + project )
                 elif decision == 's':
