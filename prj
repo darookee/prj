@@ -50,23 +50,29 @@ def getDbConn( config ):
 
 def add( args, config ):
     if args.project:
-        project = args.project[0]
+        project = args.project.split()[0]
         if args.path:
+            path = args.path.split()[0]
             c = getDbConn( config )
-            addProject( c, project, args.path[0] )
-            print( project + ' added with path ' + args.path[0] )
+            res = addProject( c, project, path )
+            if res:
+                print( project + ' added with path ' + path )
             return True
     if args.scan:
         scan( config.get( 'DEFAULT', 'projectdir' ), config )
 
 
 def addProject( c, project, path ):
+    if os.path.isdir( path ) != True:
+        print( 'path ' + path + ' is not a directory' )
+        return False;
     if checkProjectExists( c, project ) == False:
         c.execute( 'insert into projects ( project, path ) values ( "' + project.lower() + '", "' + path + '" )' )
         c.commit()
         c.close()
     else:
         print( 'project ' + project + ' allready added' )
+        return False;
     return True;
 
 def checkProjectExists( c, project ):
@@ -95,11 +101,18 @@ def scan( directory, config ):
 def info( args, config ):
     if args.project:
         project = args.project[0]
-        if args.path == True or args.ftp == False:
-            c = getDbConn( config )
-            r = c.execute( 'select path from projects where project LIKE ?', ('%'+project+'%',) )
-            path = r.fetchone()[0]
-            print( path )
+        if checkProjectExists( getDbConn( config ), project ) == True:
+            if args.path == True or args.ftp == False:
+                c = getDbConn( config )
+                r = c.execute( 'select path from projects where project LIKE ?', ('%'+project+'%',) )
+                path = r.fetchone()
+                if path:
+                    path = path[0]
+                    print( path )
+                else:
+                    print( project + ' does not exist' )
+        else:
+            print( project + ' does not exist' )
     return True
 
 def remove( args, config ):
