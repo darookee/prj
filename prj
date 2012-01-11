@@ -83,6 +83,14 @@ def checkProjectExists( c, project ):
     else:
         return False
 
+def getPossibleProjectName( c, projectShort ):
+    r = c.execute( 'select project from projects where project LIKE ?', ('%'+projectShort+'%',) )
+    res = r.fetchone()
+    if res:
+        return res[0]
+    else:
+        return projectShort
+
 def scan( directory, config ):
     directoryToScan = os.path.abspath( os.path.expanduser( directory ) )
     print( 'Scanning ' + directoryToScan )
@@ -100,10 +108,11 @@ def scan( directory, config ):
 
 def info( args, config ):
     if args.project:
+        c = getDbConn( config )
         project = args.project[0]
-        if checkProjectExists( getDbConn( config ), project ) == True:
+        project = getPossibleProjectName( c, project )
+        if checkProjectExists( c, project ) == True:
             if args.path == True or args.ftp == False:
-                c = getDbConn( config )
                 r = c.execute( 'select path from projects where project LIKE ?', ('%'+project+'%',) )
                 path = r.fetchone()
                 if path:
